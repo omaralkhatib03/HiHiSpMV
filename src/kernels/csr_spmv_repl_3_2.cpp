@@ -1,4 +1,4 @@
-#include <xlx_definitions.hpp>
+#include "xlx_definitions.hpp"
 
 /*
     (Multi-tile) CSR SpMV Logic split into four kernels.

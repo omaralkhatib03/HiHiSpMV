@@ -4,17 +4,22 @@
 #include <stdarg.h>
 #include <assert.h> 
 
+// #include "ap_shift_reg.h"
 #include "ap_axi_sdata.h"
-#include "ap_shift_reg.h"
+#include "ap_int.h"
 #include "hls_stream.h"
 // #include "hls_print.h" // See: https://docs.xilinx.com/r/en-US/ug1399-vitis-hls/HLS-Print-Function
+
+inline constexpr std::size_t align_to_next_byte(std::size_t n) {
+    return (n + 7) & ~std::size_t(7);
+}
 
 typedef float prec_t;
 typedef int prec_int_t;
 
 // Set
 #define DEBUG 0 // Turn off before synthesis
-#define VECTOR_SIZE 1875 // Square tile side length
+#define VECTOR_SIZE 16368 // Square tile side length
 
 #define PREC_SIZE (sizeof(prec_t)*8)
 #define INDEX_SIZE (sizeof(int)*8)
@@ -25,10 +30,10 @@ typedef int prec_int_t;
 typedef ap_axiu<1, 0, 0, 0> pkt_sig;
 typedef ap_axiu<PREC_SIZE, 0, 0, 0> pkt_atomic;
 typedef ap_axiu<BURST_SIZE, 0, 0, 0> pkt_block;
-typedef ap_axiu<2*INDEX_SIZE+1, 0, 0, 0> pkt_ind_nnz;
-typedef ap_axiu<INDEX_SIZE+PREC_SIZE+1+1, 0, 0, 0> pkt_ind_val;
-typedef ap_axiu<2*INDEX_SIZE, 0, 0, 0> pkt_double;
-typedef ap_axiu<INDEX_SIZE+16+1+1, 0, 0, 0> pkt_ind_msk;
+typedef ap_axiu<align_to_next_byte(2*INDEX_SIZE+1), 0, 0, 0> pkt_ind_nnz;
+typedef ap_axiu<align_to_next_byte(INDEX_SIZE+PREC_SIZE+1+1), 0, 0, 0> pkt_ind_val;
+typedef ap_axiu<align_to_next_byte(2*INDEX_SIZE), 0, 0, 0> pkt_double;
+typedef ap_axiu<align_to_next_byte(INDEX_SIZE+16+1+1), 0, 0, 0> pkt_ind_msk;
 typedef pkt_ind_nnz pkt_ind_row;
 
 // For reporting trip-count
@@ -60,7 +65,7 @@ typedef struct index_value_pair {
 
     index_value_pair() = default;
 
-    void get(const ap_uint<INDEX_SIZE+PREC_SIZE+1+1>& d) {
+    void get(const ap_uint<align_to_next_byte(INDEX_SIZE+PREC_SIZE+1+1)>& d) {
         union {
             unsigned int val_uint;
             int val_int;
@@ -77,7 +82,7 @@ typedef struct index_value_pair {
         is_write = d.range(INDEX_SIZE+PREC_SIZE+1, INDEX_SIZE+PREC_SIZE+1);
     }
 
-    void set(const ap_uint<INDEX_SIZE+PREC_SIZE+1+1>& d) {
+    void set(const ap_uint<align_to_next_byte(INDEX_SIZE+PREC_SIZE+1+1)>& d) {
         union {
             unsigned int val_uint;
             int val_int;
@@ -103,7 +108,7 @@ typedef struct index_index_pair {
 
     index_index_pair() = default;
 
-    int get(const ap_uint<2*INDEX_SIZE+1>& d) {
+    int get(const ap_uint<align_to_next_byte(2*INDEX_SIZE+1)>& d) {
         union {
             unsigned int val_uint;
             int val_int;
@@ -116,7 +121,7 @@ typedef struct index_index_pair {
         return 0;
     }
 
-    void set(ap_uint<2*INDEX_SIZE+1>& d) {
+    void set(ap_uint<align_to_next_byte(2*INDEX_SIZE+1)>& d) {
         union {
             unsigned int val_uint;
             int val_int;
@@ -140,7 +145,7 @@ typedef struct index_block_mask_pair {
 
     index_block_mask_pair() = default;
 
-    int get(const ap_uint<INDEX_SIZE+16+1+1>& d) {
+    int get(const ap_uint<align_to_next_byte(INDEX_SIZE+16+1+1)>& d) {
         union {
             unsigned int val_uint;
             int val_int;
@@ -153,7 +158,7 @@ typedef struct index_block_mask_pair {
         return 0;
     }
 
-    void set(ap_uint<INDEX_SIZE+16+1+1>& d) {
+    void set(ap_uint<align_to_next_byte(INDEX_SIZE+16+1+1)>& d) {
         union {
             unsigned int val_uint;
             int val_int;

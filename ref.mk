@@ -5,6 +5,11 @@
 # CPP compiler
 # CC = g++
 
+PLATFROM?=mudkip
+SYSROOT=/home/oa321/work/mudkip/vivado/pfm/mudkip-lin/SDK/sysroots/cortexa72-cortexa53-xilinx-linux
+ROOTFS=/home/oa321/work/mudkip/vivado/pfm/mudkip-lin/images/linux
+INI=xrt.ini
+
 # Python interpreter
 PYTHON = python3
 
@@ -32,10 +37,6 @@ SRC_REF := $(SRC_ROOT)/reference
 # Test matrix data path 
 DATA_PATH := $(PROJ_ROOT)/data
 
-PLATFORM ?= mudkip
-SYSROOT=/home/oa321/work/mudkip/vivado/pfm/mudkip-lin/SDK/sysroots/cortexa72-cortexa53-xilinx-linux
-ROOTFS=/home/oa321/work/mudkip/vivado/pfm/mudkip-lin/images/linux
-
 # ----------------------------------  Xilinx definitions  ------------------------------------
 
 # Implicit targets for kernels and related utilities are defined in the following included file
@@ -44,12 +45,12 @@ include ./xilinx.mk
 XLX_EXEC_ARGS += $(XLX_SINGLE_XCLBIN) #bin/build_dir.hw.1/hihispmv.xclbin 
 
 ## Some interesting matrices
-XLX_MATRIX		:= psmigr_2/psmigr_2_row_sorted.mtx
-XLX_DEVICE_ID		:= 0	# Deviced Id
+XLX_MATRIX		:= problems/lp_afiro.mtx
+XLX_DEVICE_ID	:= 0	# Deviced Id
 XLX_TEST		:= 0	# Test Type
-XLX_CU_COUNT		:= 16	# Compute Units
+XLX_CU_COUNT	:= 1	# Compute Units
 XLX_TILES		:= 0	# Tiles in a partition - Inactive for now
-XLX_PART_METHOD 	:= 2	# Partition method
+XLX_PART_METHOD := 2	# Partition method
 XLX_ITERS		:= 100	# Iterations
 XLX_RUNS		:= 10	# Runs
 HW_SIZE			:= 1875	# Hardware size (max. square tile size)
@@ -69,7 +70,7 @@ XLX_EXEC_ARGS += $(DATA_PATH)/$(XLX_MATRIX) $(XLX_DEVICE_ID) $(XLX_TEST) $(XLX_C
 # -------------------------------- Xilinx specific targets --------------------------------
 
 build_xilinx_spmv_host: .pre
-	$(CXX) $(CXXFLAGS_XILINX) $(XLX_SPMV_HOST_SRC) -o $(XLX_SPMV_HOST_BIN) $(CXXLDFLAGS_XILINX) 
+	$(CC) $(CXXFLAGS_XILINX) $(XLX_SPMV_HOST_SRC) -o $(XLX_SPMV_HOST_BIN) $(CXXLDFLAGS_XILINX) 
 
 # ------------ Explicit XO compilation targets for implcit targets in "xilinx.mk" ------------
 
@@ -86,15 +87,13 @@ endif
 test_xilinx_spmv:  
 	$(EXEC_PRE_COMMAND) $(XLX_SPMV_HOST_BIN) $(XLX_EXEC_ARGS) 
 
-
+# -------------------------------- Misc. targets  --------------------------------
 $(BIN_DIR)/package/sd_card.img: $(PLC_BIN) $(XCLBIN) $(BIN_DIR)/emconfig.json $(INI)
-	$(VPP) -p -t $(TARGET) --platform $(PLATFROM) ./bin/temp_dir.hw.1/link/int/hihi_spmv.xclbin -o $(BIN_DIR)/kernel.xclbin \
+	v++ -p -t $(TARGET) --platform $(PLATFROM) ./bin/temp_dir.hw.1/link/int/hihi_spmv.xclbin -o $(BIN_DIR)/kernel.xclbin \
 		--package.out_dir $(BIN_DIR)/package \
 		--package.rootfs ${ROOTFS}/rootfs.ext4 \
 		--package.image_format=ext4 \
 		--package.kernel_image ${ROOTFS}/Image \
-
-# -------------------------------- Misc. targets  --------------------------------
 
 clean:
 	$(RM) $(XLX_SPMV_HOST_BIN)

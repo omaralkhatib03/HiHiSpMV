@@ -1,5 +1,5 @@
 # Host architecture specification(Check if use anywhere, else remove)
-HOST_ARCH := x86 
+HOST_ARCH := aarch64
 
 # Profile the application
 PROFILE := no
@@ -91,7 +91,7 @@ XLX_SINGLE_OBJS += $(XLX_TEMP_DIR)/$(XLX_SPMV_CSR_MODEL_2_REP)_s_3_1.xo
 XLX_SINGLE_OBJS += $(XLX_TEMP_DIR)/$(XLX_SPMV_CSR_MODEL_2_REP)_s_3_2.xo
 
 # One xclbin to contain all single versions
-XLX_SINGLE_XCLBIN := $(XLX_BUILD_DIR)/hihi_spmv.xclbin
+XLX_SINGLE_XCLBIN := $(XLX_BUILD_DIR)/hihi_spmv.xsa
 
 ######################### Single Precision compilation targets #####################
 

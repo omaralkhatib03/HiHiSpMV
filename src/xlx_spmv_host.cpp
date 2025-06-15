@@ -142,11 +142,15 @@ int RunHiHiSpMV(
     if (verifiability&2) {
         verfiyTilePartitioningSpmv(*matA, yParts, xParts, 1, tiles, yPartRows, partMethod);
     }
+    
+    std::cout << "Verifying Partitioning" << std::endl;
 
     // SpMV vectors
     auto vecX = DenseVector<T>(matA->cols()); // Ax=b
     auto vecB = DenseVector<T>(matA->cols()); // Ax=b (fpga)
     
+    std::cout << "Creating Dense Vectors" << std::endl;
+
     // std::unique_ptr<CSRMatrix<double>> matA_db = readMatrixCSR<double>(matrixFile, read);
     CSRMatrix<double> matA_db(matA->nnz(), matA->rows(), matA->cols());
     for (int i=0; i<matA->nnz(); i++) {
@@ -167,8 +171,14 @@ int RunHiHiSpMV(
             return min + scale * (max-min);
         });
     
+    std::cout << "Multiply Golden" << std::endl;
+
     auto vecC = DenseVector<T>(matA->cols(), 0); // Ax=c (ref)
     TiledMatrixVectorMult<T>(tiles, yParts, xParts, vecX, vecC, yPartRows, partMethod);
+    
+    std::cout << "Obtained Golden" << std::endl;
+
+    std::cout << "Initialising XRT Context" << std::endl;    
 
     // Start: Device and kernels creation
     auto device = xrt::device(deviceIndex);
@@ -178,6 +188,8 @@ int RunHiHiSpMV(
                             spmvKrnl2(tiles.size()),
                             spmvKrnl3(tiles.size()), 
                             spmvKrnl4(tiles.size());
+
+    std::cout << "Creating Kernels" << std::endl;
 
     CreateKernels(spmvKrnl1, spmvKrnl2, spmvKrnl3, spmvKrnl4, 
         device, uuid, binaryFile, tiles.size(), verbosity);
@@ -195,7 +207,11 @@ int RunHiHiSpMV(
     std::vector<uint> validTiles;
     validTiles.reserve(tiles.size());
 
+    std::cout << "Allocating Buffers" << std::endl;
+
     AllocateBuffers(device, spmvKrnl1, boIndices, boValues, tiles, validTiles, BLOCK_SIZE);
+
+    std::cout << "Tiling Buffers" << std::endl;
 
     // Each title's value count
     std::vector<uint> nnzBlocksTot; 
@@ -215,15 +231,21 @@ int RunHiHiSpMV(
         vecBlocks = locVecBlocks > vecBlocks ? locVecBlocks : vecBlocks;
         rowBlocks = locRowBlocks > rowBlocks ? locRowBlocks : rowBlocks;
     }   
+    
+    std::cout << "Packing Tiles Into buffers" << std::endl;
 
     // TODO: Skip packing for empty tiles
     PackTilesIntoBuffers(boIndices, boValues, tiles, vecX,
         nnzBlocksTot, rowBlocksTot, vecBlocksTot, validTiles, vecBlocks, rowBlocks, BLOCK_SIZE);
 
+    std::cout << "Verifying Tiling" << std::endl;
+
     if (verifiability&2) {
          // TODO: add the sparse tile skipping logic in here.
         VerifyTilesPacking(boIndices, boValues, tiles, validTiles, rowBlocks, vecBlocks, BLOCK_SIZE);
     }
+
+    std::cout << "Syncking Kernels" << std::endl;
 
     // Sync. buffers to FPGA
     for (int i=0; i<tiles.size(); i++) {
@@ -242,6 +264,8 @@ int RunHiHiSpMV(
                         runKrnl2(tiles.size()),
                         runKrnl3(tiles.size()), 
                         runKrnl4(tiles.size());
+
+    std::cout << "Setting Arguments" << std::endl;
 
     for (uint i=0; i<runs; i++) {
         for (int j=0; j<tiles.size(); j++) {
@@ -273,9 +297,13 @@ int RunHiHiSpMV(
             runKrnl4[j].set_arg(4, iterations); 
 
         }
+    
+        std::cout << "Arguments Set" << std::endl;
 
         std::chrono::duration<double> kernelTime;
         auto kernel_start = std::chrono::high_resolution_clock::now();
+
+        std::cout << "Kernel Start" << std::endl;
 
         for (int j=0; j<tiles.size(); j++) {
             runKrnl2[j].start();
@@ -291,17 +319,25 @@ int RunHiHiSpMV(
 #endif
         }
 
+        std::cout << "Kernels 2, 3 & 4 Started" << std::endl;
+        std::cout << tiles.size() << std::endl;
 #if TARGET==sw_emu
         auto kernelEnd = std::chrono::high_resolution_clock::now();
         kernelTime = std::chrono::duration<double>(kernelEnd - kernel_start);
 #else
         kernel_start = std::chrono::high_resolution_clock::now();
+
+        std::cout << "Starting Kernel 1" << std::endl;
         for (int j=0; j<tiles.size(); j++) {
             runKrnl1[j].start();
         }
+
+        std::cout << "Waiting for Kernel 1" << std::endl;
         for (int j=0; j<tiles.size(); j++) {
             runKrnl1[j].wait();
         }
+
+        std::cout << "Kernel 1 Finished" << std::endl;
 
         auto kernelEnd = std::chrono::high_resolution_clock::now();
         kernelTime = std::chrono::duration<double>(kernelEnd - kernel_start);
